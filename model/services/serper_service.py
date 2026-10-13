@@ -3,7 +3,7 @@ import requests
 from typing import List, Optional
 from langchain_core.documents import Document
 from dotenv import load_dotenv
-from model.contexts.context_keywords import LOCATION_KEYWORDS
+from model.contexts.context_keywords import LOCATION_KEYWORDS, has_any
 from model.contexts.ph_categories import CURRENT_INFO_CATEGORIES
 
 load_dotenv()
@@ -11,8 +11,7 @@ load_dotenv()
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
 def has_location_reference(question: str) -> bool:
-    q_lower = question.lower()
-    return any(keyword in q_lower for keyword in LOCATION_KEYWORDS)
+    return has_any(question, LOCATION_KEYWORDS)
 
 def fetch_serper_results(query: str, max_results: int = 5) -> List[Document]:
     if not SERPER_API_KEY:
@@ -89,11 +88,9 @@ def fetch_serper_results(query: str, max_results: int = 5) -> List[Document]:
         return []
 
 def classify_real_time_query(question: str) -> str:
-    q = question.lower()
     for category, keywords in CURRENT_INFO_CATEGORIES.items():
-        for kw in keywords:
-            if kw in q:
-                return category
+        if has_any(question, keywords):
+            return category
     return "general_current"
 
 def extract_location_from_context(user_location: Optional[str]) -> str:

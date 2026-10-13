@@ -24,6 +24,9 @@ const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const loadingDots = document.getElementById('loading-dots');
 
+// Lets the bot remember this tab's conversation until the page is reloaded
+const sessionId = Math.random().toString(36).slice(2);
+
 function scrollToBottom() {
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
@@ -39,9 +42,19 @@ function getCurrentTime() {
     return `${hours}:${minutesStr} ${ampm}`;
 }
 
+// Turns HTML characters into plain text so nothing in a reply can run as code on the page
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function formatBotMessage(text) {
-    let formatted = text;
-    
+    let formatted = escapeHtml(text);
+
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
     const lines = formatted.split('\n');
@@ -123,9 +136,10 @@ async function botReply(userMessage) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 message: userMessage,
-                location: getSelectedCity()
+                location: getSelectedCity(),
+                session_id: sessionId
             })
         });
         

@@ -1,6 +1,9 @@
+import gzip
 import re
+import time
 import urllib.request
 import ssl
+from functools import lru_cache
 from bs4 import BeautifulSoup
 
 def parse_earthquake_html(html_content):
@@ -168,16 +171,33 @@ def get_latest_significant_earthquake(main_page_html, base_url="https://earthqua
     
     return None
 
+# PHIVOLCS sometimes sends gzipped pages even when we don't ask for it, so unpack those.
+# Newer pages are UTF-8 and older ones are Windows-1252, so try UTF-8 first.
+def read_page(url, ssl_context):
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, context=ssl_context, timeout=15) as response:
+        raw = response.read()
+        if response.headers.get("Content-Encoding") == "gzip":
+            raw = gzip.decompress(raw)
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError:
+        return raw.decode('windows-1252', errors='ignore')
+
 def fetch_and_parse_latest_earthquake(main_page_url="https://earthquake.phivolcs.dost.gov.ph/"):
+    return _cached_latest_earthquake(main_page_url, int(time.time() // 600))
+
+# Reuses the same result for 10 minutes so PHIVOLCS isn't hit on every question.
+# A failed fetch also stays cached for that long.
+@lru_cache(maxsize=1)
+def _cached_latest_earthquake(main_page_url, time_window):
     try:
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         
         print(f"Fetching main page: {main_page_url}")
-        req = urllib.request.Request(main_page_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, context=ssl_context) as response:
-            main_page_html = response.read().decode('utf-8', errors='ignore')
+        main_page_html = read_page(main_page_url, ssl_context)
         
         earthquake_url = get_latest_significant_earthquake(main_page_html, main_page_url, debug=True)
         
@@ -187,9 +207,7 @@ def fetch_and_parse_latest_earthquake(main_page_url="https://earthquake.phivolcs
         
         print(f"Found earthquake: {earthquake_url}")
         
-        req = urllib.request.Request(earthquake_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, context=ssl_context) as response:
-            earthquake_html = response.read().decode('windows-1252', errors='ignore')
+        earthquake_html = read_page(earthquake_url, ssl_context)
         
         earthquake_data = parse_earthquake_html(earthquake_html)
         

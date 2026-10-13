@@ -1,9 +1,67 @@
 import requests
 from datetime import datetime
+from functools import lru_cache
 from typing import Optional, Tuple, Dict
 import logging
+from model.contexts.ph_locations import HARDCODED_LOCATIONS
 
 logger = logging.getLogger(__name__)
+
+# Calls OpenWeather without letting the API key from the URL show up in error messages
+def openweather_get(url: str, params: Dict):
+    try:
+        r = requests.get(url, params=params, timeout=8)
+    except requests.RequestException as e:
+        raise RuntimeError(f"OpenWeather request failed ({type(e).__name__})") from None
+    if not r.ok:
+        raise RuntimeError(f"OpenWeather request failed with status {r.status_code}")
+    return r.json()
+
+# Find a city's coordinates, checking the hardcoded list before OpenWeather and Nominatim
+def geocode(city_name: str, api_key: Optional[str]) -> Optional[Tuple[float, float, str]]:
+    try:
+        return _lookup_city(city_name, api_key)
+    except Exception as e:
+        logger.warning(f"Geocode failed for {city_name}: {e}")
+        return None
+
+# Failed lookups raise, so only the cities that were found get cached
+@lru_cache(maxsize=256)
+def _lookup_city(city_name: str, api_key: Optional[str]) -> Tuple[float, float, str]:
+    clean_name = city_name.replace(", Philippines", "").strip()
+
+    if clean_name in HARDCODED_LOCATIONS:
+        print(f"[GEOCODE] Using hardcoded location for: {clean_name}")
+        return HARDCODED_LOCATIONS[clean_name]
+
+    if api_key:
+        url = "https://api.openweathermap.org/geo/1.0/direct"
+        params = {"q": f"{clean_name},PH", "limit": 1, "appid": api_key}
+        try:
+            arr = openweather_get(url, params)
+        except RuntimeError as e:
+            print(f"[GEOCODE] {e}, trying Nominatim instead")
+            arr = None
+        if isinstance(arr, list) and len(arr) > 0:
+            lat = arr[0].get("lat")
+            lon = arr[0].get("lon")
+            name = arr[0].get("name") or city_name
+            state = arr[0].get("state")
+            country = arr[0].get("country")
+            display = f"{name}" + (f", {state}" if state else "") + (f", {country}" if country else "")
+            return float(lat), float(lon), display
+
+    # Search by the plain city name and only inside the Philippines
+    nom_url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": clean_name, "countrycodes": "ph", "format": "json", "limit": 1}
+    arr = requests.get(nom_url, params=params, headers={"User-Agent": "DisasterAlertBot/1.0"}, timeout=6).json()
+    if isinstance(arr, list) and len(arr) > 0:
+        lat = arr[0].get("lat")
+        lon = arr[0].get("lon")
+        display = arr[0].get("display_name", city_name)
+        return float(lat), float(lon), display
+
+    raise LookupError("no matching place")
 
 def get_weather_icon(condition_main: str, condition_id: int) -> str:
     if condition_id >= 200 and condition_id < 300:
@@ -28,13 +86,10 @@ def get_weather_icon(condition_main: str, condition_id: int) -> str:
     return "bi-cloud"
 
 def fetch_current_weather(lat: float, lon: float, api_key: str) -> Dict:
-    url = (
-        f"https://api.openweathermap.org/data/2.5/weather"
-        f"?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+    data = openweather_get(
+        "https://api.openweathermap.org/data/2.5/weather",
+        {"lat": lat, "lon": lon, "appid": api_key, "units": "metric"}
     )
-    r = requests.get(url, timeout=8)
-    r.raise_for_status()
-    data = r.json()
 
     main = data.get("main", {})
     weather = data.get("weather", [{}])[0]
@@ -55,13 +110,10 @@ def fetch_current_weather(lat: float, lon: float, api_key: str) -> Dict:
     }
 
 def fetch_forecast(lat: float, lon: float, api_key: str, days: int = 5) -> Dict:
-    url = (
-        f"https://api.openweathermap.org/data/2.5/forecast"
-        f"?lat={lat}&lon={lon}&appid={api_key}&units=metric&cnt=40"
+    data = openweather_get(
+        "https://api.openweathermap.org/data/2.5/forecast",
+        {"lat": lat, "lon": lon, "appid": api_key, "units": "metric", "cnt": 40}
     )
-    r = requests.get(url, timeout=8)
-    r.raise_for_status()
-    data = r.json()
 
     forecast_list = data.get("list", [])
     daily_data: Dict[str, Dict] = {}

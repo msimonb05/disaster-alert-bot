@@ -20,7 +20,9 @@ def parse_html_to_text(html: str) -> str:
     # Remove scripts and styles
     for tag in soup(["script", "style", "noscript"]):
         tag.extract()
-    return soup.get_text(separator="\n").strip()
+    # Keep only the main content when the page marks it, so menus and footers are left out
+    root = soup.find("main") or soup.find("article") or soup
+    return root.get_text(separator="\n").strip()
 
 async def scrape_single_url(url: str) -> Optional[Document]:
     async with aiohttp.ClientSession() as session:
