@@ -1,8 +1,8 @@
 CURRENT_INFO_CATEGORIES = {
     "current_weather": [
-        "current weather", "lagay ng panahon", "ngayon", "kasalukuyan",
+        "current weather", "lagay ng panahon",
         "weather now", "temperature now", "current temperature", "weather update",
-        "pag-ulan", "ulan ngayon", "ulan na", "init ngayon", "bagyo ngayon"
+        "pag-ulan", "ulan ngayon", "ulan na", "init ngayon"
     ],
     "current_forecast": [
         "forecast", "tuloy na lagay ng panahon", "prediction",
