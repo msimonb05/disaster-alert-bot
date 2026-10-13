@@ -1,7 +1,5 @@
 # DisasterAlertBot: Local Disaster Preparedness Chatbot
 
-> ***Note for Developers**: Please read the instructions first located in* `instructions.txt`
-
 ## Project Description
 
 The Philippines is struck by numerous disasters each year, including typhoons, earthquakes, and floods. Its location along the Pacific Ring of Fire and typhoon belt makes it highly vulnerable to these hazards. 
