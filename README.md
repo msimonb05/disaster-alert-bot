@@ -45,16 +45,6 @@ During disasters, people often face difficulties in **accessing accurate and tim
 | **Weather API** | OpenWeatherMap API, Serper |
 | **Deployment** | Docker |
 
-## Members
-
-- **BRINGAS**, MARK SIMON ZUILAN
-- **BUGNAY**, KEF HARVEY MASAOAY
-- **CHAMOS**, RHONE BRYCE MOLTIO
-- **FERNANDO**, ERWIN CHRIS PEREZ
-- **OSTING**, NADINE KYLA GABALDON
-- **RIZALDE**, JEREMIAH TABALON
-- **SAN MIGUEL**, WIFRAIM NEIL RAMIREZ
-
 ---
 
 > *This project is developed as a final project in fulfillment of the subject Intelligent Systems (INTSYS1) to promote community disaster resilience through AI-driven preparedness assistance.* 
